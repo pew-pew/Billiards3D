@@ -68,18 +68,19 @@ class Box:
         self.resistanse = resistanse
         self.wall_resistanse = wall_resistanse
 
-    def movement():
+    def movement(self):
         points = len(self.balls)
         for ball in self.balls:
-            ball.wall(self.sizeX, self.sizeY, self.sizeZ, wall_resistanse)
+            ball.wall(self.sizeX, self.sizeY, self.sizeZ, self.wall_resistanse)
         for ball in self.balls:
             ball.resistanse(self.resistanse)
+        
         for ball in self.balls:
             for hole in self.holes:
                 hole.score(ball)
         for i in range(len(self.balls)):
             for j in range(i + 1, len(self.balls)):
-                if self.balls[i].dist(balls[j]) <= 0:
-                    self.balls[i].crash(balls[j])
+                if self.balls[i].dist(self.balls[j]) <= 0:
+                    self.balls[i].crash(self.balls[j])
         for ball in self.balls:
-            ball.move() 
+            ball.move()
