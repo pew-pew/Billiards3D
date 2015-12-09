@@ -2,59 +2,84 @@ import sys
 from PyQt5.Qt import *
 import phisi as physics
 import plani as planimetry
-from collections import deque
+import math
+
+def translate(x, y, z, dx, dy, dz):
+    return (x + dx, y + dy, z + dz)
+
+def rotateOX(x, y, z, rotOX):
+    cos_ = math.cos(rotOX)
+    sin_ = math.sin(rotOX)
+    yn = y *  cos_ + z * sin_
+    zn = y * -sin_ + z * cos_
+    return (x, yn, zn)
+
+def rotateOY(x, y, z, rotOY):
+    cos_ = math.cos(rotOY)
+    sin_ = math.sin(rotOY)
+    xn = x * cos_ + z * -sin_
+    zn = x * sin_ + z * cos_
+    return (xn, y, zn)
+
+def rotateOZ(x, y, z, rotOZ):
+    cos_ = math.cos(rotOZ)
+    sin_ = math.sin(rotOZ)
+    xn = x * cos_ + y * -sin_
+    yn = x * sin_ + y *  cos_
+    return (xn, yn, z)
+
+def rotate(x, y, z, rotOX, rotOY, rotOZ):
+    x, y, z = rotateOY(x, y, z, rotOY)
+    x, y, z = rotateOX(x, y, z, rotOX)
+    x, y, z = rotateOZ(x, y, z, rotOZ)
+    return (x, y, z)
 
 class Camera:
-    def __init__(self, box, smt=lambda *args: args):
+    def __init__(self, box, width, height, x=0, y=0, z=0, rotOX=0, rotOY=0, rotOZ=0):
         self.box = box
-        self.smt = smt
+        self.width = width
+        self.height = height
+        self.x = x
+        self.y = y
+        self.z = z
+        self.rotOX = rotOX
+        self.rotOY = rotOY
+        self.rotOZ = rotOZ
     
-    def render(self, painter):
-        painter.fillRect(0, -0, 300, 300, QBrush(Qt.white, Qt.SolidPattern))
+    def moveLocal(self, x, y, z):
+        x, y, z = rotate(x, y, z, self.rotOX, self.rotOY, self.rotOZ)
+        self.x += x
+        self.y += y
+        self.z += z
+    
+    def render(self, painter, width, height):
+        painter.fillRect(0, 0, width, height, QBrush(Qt.white, Qt.SolidPattern))
         for ball in self.box.balls:
             x, y, z, r = ball.sphere.x, ball.sphere.y, ball.sphere.z, ball.sphere.R
-            x, y, z = self.smt(x, y, z)
-            depth = z / 300
+            x, y, z = translate(x, y, z, -self.x, -self.y, -self.z)
+            x, y, z = rotate(x, y, z, -self.rotOX, -self.rotOY, -self.rotOZ)
             
-            painter.setBrush(QColor(depth * 255, (1 - depth) * 255, 0))
-            painter.drawEllipse(x - r, y - r, r * 2, r * 2)
+            if z < 0: continue
+            
+            kx = width / self.width
+            ky = height / self.height
+            rectX = (x - r + self.width / 2) * kx
+            rectY = (y - r + self.height / 2) * ky
+            rectW = r * 2 * kx
+            rectH = r * 2 * ky
+            painter.drawEllipse(rectX, rectY, rectW, rectH)
+
 
 class CameraViewWidget(QWidget):
     def __init__(self, parent=None, camera=None):
         super().__init__(parent)
         self.camera = camera
-        self.setFixedSize(300, 300)
     
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setTransform(painter.transform().scale(0.5, 0.2))
-        self.camera.render(painter)
+        painter.setTransform(painter.transform().translate(0, self.height() - 1).scale(1, -1))
+        self.camera.render(painter, self.width(), self.height())
 
-class SIW(QWidget):
-    def __init__(self, parent=None, box=None):
-        super().__init__(parent)
-        
-        self.box = box
-        self.cameraXY = Camera(box)
-        self.cameraXZ = Camera(box, lambda x, y, z: (x, z, y))
-        self.cameraYZ = Camera(box, lambda x, y, z: (y, z, x))
-        
-        self.setFixedSize(600, 600)
-    
-    def paintEvent(self, event):
-        painterXY = QPainter(self)
-        #painterXZ = QPainter(self)
-        #painterYZ = QPainter(self)
-        
-        painterXY.translate(300, 300)
-        #painterXZ.translate(300, 300)
-        #painterYZ.translate(300, 300)
-        
-        painterXY.rotate(-30)
-        
-
-        
-        self.cameraXY.render(painterXY)
 
 class BilliardsWidget(QWidget):
     def __init__(self, parent=None):
@@ -62,27 +87,26 @@ class BilliardsWidget(QWidget):
         
         self.initBox()
         self.initBaseProperties()
+        self.initWidgets()
+        
+        self.spectatorSpeed = [0, 0, 0]
+        self.lastMousePos = None
         
         self.timer = QBasicTimer()
         self.timer.start(10, self)
-        
-        #self.cameraView1 = CameraViewWidget(camera=Camera(self.box))
-        #self.cameraView2 = CameraViewWidget(camera=Camera(self.box, lambda x, y, z: (x, z, y)))
-        #self.cameraView3 = CameraViewWidget(camera=Camera(self.box, lambda x, y, z: (y, z, x)))
-        self.siw = SIW(self, self.box)
+    
+    def initBaseProperties(self):
+        self.resize(300, 300)
+        self.move(300, 300)
+    
+    def initWidgets(self):
+        self.cameraView = CameraViewWidget(self, camera=Camera(self.box, width=300, height=300, x=150, y=150, z=0))
         
         vbox = QHBoxLayout()
-        #vbox.addWidget(self.cameraView1)
-        #vbox.addWidget(self.cameraView2)
-        #vbox.addWidget(self.cameraView3)
-        vbox.addWidget(self.siw)
+        vbox.addWidget(self.cameraView)
         vbox.setContentsMargins(0, 0, 0, 0)
         
         self.setLayout(vbox)
-    
-    def initBaseProperties(self):
-        #self.setFixedSize(300, 300)
-        self.move(300, 300)
     
     def initBox(self):
         sizeX, sizeY, sizeZ = 300, 300, 300
@@ -90,15 +114,74 @@ class BilliardsWidget(QWidget):
         #             physics.Ball(x, y, z, R, m, vx, vy, vz)
         self.balls = [physics.Ball(250, 130, 150, 20, 1, 1.5, 0.3, 0),
                       physics.Ball(200, 160, 150, 20, 1, 1, 2, 0),
-                      physics.Ball(50, 60, 150, 20, 1, 2, 0.5, 1),
+                      physics.Ball(50, 60, 150, 20, 1, 2, 0.5, 0),
+                      #physics.Ball(100, 200, 200, 20, 0, 1, 0, 0),
+                      #physics.Ball(100, 200, 100, 20, 0, 0, 2, 0),
+                      #physics.Ball(100, 100, 200, 20, 0, 0, 0, 0),
+                      #physics.Ball(100, 100, 100, 20, 0, 2, 0, 0),
+                      #physics.Ball(200, 200, 200, 20, 0, 0, 0, 0),
+                      #physics.Ball(200, 200, 100, 20, 0, 0, 0, 2),
+                      #physics.Ball(200, 100, 200, 20, 0, 0, 0, 0),
+                      #physics.Ball(200, 100, 100, 20, 0, 0, 5, 0),
                       ]
         self.holes = []
         self.box = physics.Box(300, 300, 300, self.balls, self.holes, 0, 0)
     
-    def paintEvent(self, event):
-        physics.Box.movement(self.box)
+    def keyPressEvent(self, event):
+        key = event.key()
+        if key == Qt.Key_A:
+            self.spectatorSpeed[0] -= 1
+        if key == Qt.Key_D:
+            self.spectatorSpeed[0] += 1
+        if key == Qt.Key_Q:
+            self.spectatorSpeed[1] -= 1
+        if key == Qt.Key_E:
+            self.spectatorSpeed[1] += 1
+        if key == Qt.Key_S:
+            self.spectatorSpeed[2] -= 1
+        if key == Qt.Key_W:
+            self.spectatorSpeed[2] += 1
+    
+    def keyReleaseEvent(self, event):
+        key = event.key()
+        if key == Qt.Key_A:
+            self.spectatorSpeed[0] += 1
+        if key == Qt.Key_D:
+            self.spectatorSpeed[0] -= 1
+        if key == Qt.Key_Q:
+            self.spectatorSpeed[1] += 1
+        if key == Qt.Key_E:
+            self.spectatorSpeed[1] -= 1
+        if key == Qt.Key_S:
+            self.spectatorSpeed[2] += 1
+        if key == Qt.Key_W:
+            self.spectatorSpeed[2] -= 1
+    
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.lastMousePos = [event.x(), event.y()]
+    
+    def mouseMoveEvent(self, event):
+        if event.buttons() != Qt.LeftButton or not self.lastMousePos:
+            return
+        
+        x, y = event.x(), event.y()
+        lastX, lastY = self.lastMousePos
+        dx, dy = x - lastX, y - lastY
+        self.cameraView.camera.rotOX -= dy / 100
+        self.cameraView.camera.rotOY -= dx / 100
+        
+        self.lastMousePos = [x, y]
+    
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.lastMousePos = None
+        
+        
     
     def timerEvent(self, event):
+        self.cameraView.camera.moveLocal(*self.spectatorSpeed)
+        self.box.movement()
         self.update()
 
 
