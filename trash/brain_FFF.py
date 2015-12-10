@@ -60,7 +60,7 @@ class Camera:
         return (x, y, z)
     
     def transCanv(self, x, y, z, width, height):
-        k = 200 / max(z, 0.1)
+        k = z / 200
         x *= k
         y *= k
         kx = width / self.width
@@ -172,7 +172,7 @@ class BilliardsWidget(QWidget):
     def initWidgets(self):
         self.cameraView = CameraViewWidget(self, camera=Camera(self.box,
                                                                width=600, height=600,
-                                                               x=150, y=150, z=-150))
+                                                               x=150, y=150, z=150))
         
         vbox = QHBoxLayout()
         vbox.addWidget(self.cameraView)

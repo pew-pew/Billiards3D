@@ -47,9 +47,7 @@ class Camera:
         self.rotOZ = rotOZ
     
     def moveLocal(self, x, y, z):
-        x, y, z = rotateOZ(x, y, z, self.rotOZ)
-        x, y, z = rotateOX(x, y, z, self.rotOX)
-        x, y, z = rotateOY(x, y, z, self.rotOY)
+        x, y, z = rotate(x, y, z, self.rotOX, self.rotOY, self.rotOZ)
         self.x += x
         self.y += y
         self.z += z
@@ -59,53 +57,43 @@ class Camera:
         x, y, z = rotate(x, y, z, -self.rotOX, -self.rotOY, -self.rotOZ)
         return (x, y, z)
     
-    def transCanv(self, x, y, z, width, height):
-        k = 200 / max(z, 0.1)
-        x *= k
-        y *= k
-        kx = width / self.width
-        ky = height / self.height
-        x = (x + self.width / 2) * kx
-        y = (y + self.height / 2) * ky
-        y = height - 1 - y
-        return (x, y)
+    def transCanv(self, x, y, kx, ky):
+        x = x + self.width / 2
+        y = y + self.height / 2
+        return (x * kx, y * ky)
     
-    def render(self, painter, width, height):      
+    def render(self, painter, width, height):
+        kx = width / self.width
+        ky = height / self.height        
+
         painter.fillRect(0, 0, width, height, QBrush(Qt.white, Qt.SolidPattern))
         
-        sizeX, sizeY, sizeZ = self.box.sizeX, self.box.sizeY, self.box.sizeZ
-        edges = [[0, 0, 0, 0, 0, sizeZ],
-                 [0, 0, 0, 0, sizeY, 0],
-                 [0, 0, 0, sizeX, 0, 0],
-                 [sizeX, sizeY, sizeZ, 0, sizeY, sizeZ],
-                 [sizeX, sizeY, sizeZ, sizeX, sizeY, 0],
-                 [sizeX, sizeY, sizeZ, sizeX, 0, sizeZ],
+        sz = 300
+        edges = [[0, 0, 0, 0, 0, sz],
+                 [0, 0, 0, 0, sz, 0],
+                 [0, 0, 0, sz, 0, 0],
+                 [sz, sz, sz, 0, sz, sz],
+                 [sz, sz, sz, sz, sz, 0],
+                 [sz, sz, sz, sz, 0, sz],
                  
-                 [0, 0, sizeZ, sizeX, 0, sizeZ],
-                 [0, sizeY, 0, sizeX, sizeY, 0],
+                 #[0, 0, sz, sz, 0, sz],
+                 #[0, sz, 0, sz, sz, 0],
                  
-                 [sizeX, 0, 0, sizeX, sizeY, 0],
-                 [0, 0, sizeZ, 0, sizeY, sizeZ],
+                 #[sz, 0, sz, 0, sz, 0],
+                 #[0, 0, sz, sz, sz, 0],
 
-                 [sizeX, 0, 0, sizeX, 0, sizeZ],
-                 [0, sizeY, 0, 0, sizeY, sizeZ],
+                 #[sz, 0, 0, 0, sz, sz],
+                 #[0, sz, 0, sz, 0, sz],
                  ]
         
-        minZ = float("inf")
-        for i in range(len(edges)):
-            x1, y1, z1, x2, y2, z2 = edges[i]
-            x1, y1, z1 = self.trans(x1, y1, z1)
-            x2, y2, z2 = self.trans(x2, y2, z2)
-            edges[i] = [x1, y1, z1, x2, y2, z2]
-            minZ = min(minZ, z1, z2)
-        
-        painter.setPen(Qt.SolidLine)        
         for edge in edges:
             x1, y1, z1, x2, y2, z2 = edge
-            if (z1 != minZ and z2 != minZ):
-                x1, y1 = self.transCanv(x1, y1, z1, width, height)
-                x2, y2 = self.transCanv(x2, y2, z2, width, height)
-                painter.drawLine(x1, y1, x2, y2)
+            x1, y1, z1 = self.trans(x1, y1, z1)
+            x2, y2, z2 = self.trans(x2, y2, z2)
+            x1, y1 = self.transCanv(x1, y1, kx, ky)
+            x2, y2 = self.transCanv(x2, y2, kx, ky)
+            painter.drawLine(x1, y1, x2, y2)
+        
         
         spheres = []
         for ball in self.box.balls:
@@ -115,27 +103,20 @@ class Camera:
             spheres.append([z, x, y, r])
         
         spheres.sort(reverse=True)
-        painter.setPen(Qt.SolidLine)
+        
         for sphere in spheres:
             z, x, y, r = sphere
             #if z < 0: continue
             
-            x0, y0 = self.transCanv(x - r, y - r, z, width, height)
-            x1, y1 = self.transCanv(x + r, y + r, z, width, height)
+            rectX = (x - r + self.width / 2) * kx
+            rectY = (y - r + self.height / 2) * ky
+            rectW = r * 2 * kx
+            rectH = r * 2 * ky
             
-            k = min(1, max(0, z / 300))
+            k = min(1, max(0, abs(z) / 300))
             
-            painter.setBrush(QColor(0, 255 * (1 - k), 255 * k))
-            painter.drawEllipse(x0, y0, x1 - x0, y1 - y0)
-            #painter.drawText((x0 + x1) / 2 , (y0 + y1) / 2, str(int(z)))
-        
-        painter.setPen(Qt.DashLine)           
-        for edge in edges:
-            x1, y1, z1, x2, y2, z2 = edge
-            if (z1 == minZ or z2 == minZ):
-                x1, y1 = self.transCanv(x1, y1, z1, width, height)
-                x2, y2 = self.transCanv(x2, y2, z2, width, height)
-                painter.drawLine(x1, y1, x2, y2)
+            painter.setBrush(QColor(0, 255 * k, (1 - k) * 255))
+            painter.drawEllipse(rectX, rectY, rectW, rectH)
 
 
 class CameraViewWidget(QWidget):
@@ -145,7 +126,7 @@ class CameraViewWidget(QWidget):
     
     def paintEvent(self, event):
         painter = QPainter(self)
-        #painter.setTransform(painter.transform().translate(0, self.height() - 1).scale(1, -1))
+        painter.setTransform(painter.transform().translate(0, self.height() - 1).scale(1, -1))
         self.camera.render(painter, self.width(), self.height())
 
 
@@ -172,7 +153,7 @@ class BilliardsWidget(QWidget):
     def initWidgets(self):
         self.cameraView = CameraViewWidget(self, camera=Camera(self.box,
                                                                width=600, height=600,
-                                                               x=150, y=150, z=-150))
+                                                               x=150, y=150, z=0))
         
         vbox = QHBoxLayout()
         vbox.addWidget(self.cameraView)
@@ -184,20 +165,20 @@ class BilliardsWidget(QWidget):
         sizeX, sizeY, sizeZ = 300, 300, 300
         
         #             physics.Ball(x, y, z, R, m, vx, vy, vz)
-        self.balls = [#physics.Ball(250, 130, 150, 20, 1, 1.5, 0.3, 1),
-                      #physics.Ball(200, 160, 150, 20, 1, 1, 2, 1),
-                      #physics.Ball(50, 60, 150, 20, 1, 2, 0.5, 1),
-                      physics.Ball(100, 200, 200, 20, 0, 3, 2, 1),
-                      physics.Ball(100, 200, 100, 20, 0, 5, 0, 0),
+        self.balls = [#physics.Ball(250, 130, 150, 20, 1, 1.5, 0.3, 0),
+                      #physics.Ball(200, 160, 150, 20, 1, 1, 2, 0),
+                      #physics.Ball(50, 60, 150, 20, 1, 2, 0.5, 0),
+                      physics.Ball(100, 200, 200, 20, 0, 0, 0, 0),
+                      physics.Ball(100, 200, 100, 20, 0, 0, 0, 0),
                       physics.Ball(100, 100, 200, 20, 0, 0, 0, 0),
                       physics.Ball(100, 100, 100, 20, 0, 0, 0, 0),
-                      physics.Ball(200, 200, 200, 20, 0, 0, 5, 0),
+                      physics.Ball(200, 200, 200, 20, 0, 0, 0, 0),
                       physics.Ball(200, 200, 100, 20, 0, 0, 0, 0),
-                      physics.Ball(200, 100, 200, 20, 0, 5, 0, 0),
+                      physics.Ball(200, 100, 200, 20, 0, 0, 0, 0),
                       physics.Ball(200, 100, 100, 20, 0, 0, 0, 0),
                       ]
         self.holes = []
-        self.box = physics.Box(300, 300, 300, self.balls, self.holes, 0.001, 0.001)
+        self.box = physics.Box(300, 300, 300, self.balls, self.holes, 0, 0)
     
     def keyPressEvent(self, event):
         key = event.key()
