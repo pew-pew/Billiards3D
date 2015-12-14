@@ -39,9 +39,12 @@ class Ball:
             return False    
     
     def resistanse(self, resistanse):
-        self.speed.x = self.speed.x - self.speed.x * resistanse
-        self.speed.y = self.speed.y - self.speed.y * resistanse
-        self.speed.z = self.speed.z - self.speed.z * resistanse
+        if abs(self.speed) < 0.1:
+            self.Nspeed = Vector(0, 0, 0)
+        else:
+            self.speed.x = self.speed.x - self.speed.x * resistanse
+            self.speed.y = self.speed.y - self.speed.y * resistanse
+            self.speed.z = self.speed.z - self.speed.z * resistanse
         
     def hit(self, direction, forse):
         self.speed += direction * forse / self.m    
@@ -55,7 +58,7 @@ class Ball:
             self.speed.z = self.speed.z * (-1 + wall_resistanse)
         
     def crash(self, other):
-        self.Nspeed, other.Nspeed = bump(self.speed, other.speed, Vector(self.sphere.x - other.sphere.x, self.sphere.y - other.sphere.y, self.sphere.z - other.sphere.z))
+        self.Nspeed, other.Nspeed = bump(self.Nspeed, other.Nspeed, Vector(self.sphere.x - other.sphere.x, self.sphere.y - other.sphere.y, self.sphere.z - other.sphere.z))
         
 
 class Box:

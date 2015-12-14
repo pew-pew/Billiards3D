@@ -60,7 +60,7 @@ class Camera:
         return (x, y, z)
     
     def transCanv(self, x, y, z, width, height):
-        k = 200 / max(z, 0.1)
+        k = 1000 / max(z, 0.1)
         x *= k
         y *= k
         kx = width / self.width
@@ -123,7 +123,7 @@ class Camera:
             x0, y0 = self.transCanv(x - r, y - r, z, width, height)
             x1, y1 = self.transCanv(x + r, y + r, z, width, height)
             
-            k = min(1, max(0, z / 300))
+            k = min(1, max(0, z / (sizeX ** 2 + sizeY ** 2 + sizeZ ** 2) ** 0.5))
             
             painter.setBrush(QColor(0, 255 * (1 - k), 255 * k))
             painter.drawEllipse(x0, y0, x1 - x0, y1 - y0)
@@ -181,23 +181,30 @@ class BilliardsWidget(QWidget):
         self.setLayout(vbox)
     
     def initBox(self):
-        sizeX, sizeY, sizeZ = 300, 300, 300
+        sizeX, sizeY, sizeZ = 1750, 875, 875
         
         #             physics.Ball(x, y, z, R, m, vx, vy, vz)
         self.balls = [#physics.Ball(250, 130, 150, 20, 1, 1.5, 0.3, 1),
                       #physics.Ball(200, 160, 150, 20, 1, 1, 2, 1),
                       #physics.Ball(50, 60, 150, 20, 1, 2, 0.5, 1),
-                      physics.Ball(100, 200, 200, 20, 0, 3, 2, 1),
-                      physics.Ball(100, 200, 100, 20, 0, 5, 0, 0),
-                      physics.Ball(100, 100, 200, 20, 0, 0, 0, 0),
-                      physics.Ball(100, 100, 100, 20, 0, 0, 0, 0),
-                      physics.Ball(200, 200, 200, 20, 0, 0, 5, 0),
-                      physics.Ball(200, 200, 100, 20, 0, 0, 0, 0),
-                      physics.Ball(200, 100, 200, 20, 0, 5, 0, 0),
-                      physics.Ball(200, 100, 100, 20, 0, 0, 0, 0),
+                      physics.Ball(437, 437, 437, 20, 0, 10, 0, 0),
+                      physics.Ball(1000 - 1, 437, 437, 20, 0, 0, 0, 0),
+                      physics.Ball(1000 + int(20 * 2 ** 0.5) + 2, 437 + 22, 437 + 22, 20, 0, 0, 0, 0),
+                      physics.Ball(1000 + int(20 * 2 ** 0.5) + 2, 437 - 22, 437 + 22, 20, 0, 0, 0, 0),
+                      physics.Ball(1000 + int(20 * 2 ** 0.5) + 2, 437 + 22, 437 - 22, 20, 0, 0, 0, 0),
+                      physics.Ball(1000 + int(20 * 2 ** 0.5) + 2, 437 - 22, 437 - 22, 20, 0, 0, 0, 0),
+                      physics.Ball(1000 + int(20 * 2 ** 0.5) * 2 + 4, 437, 437, 20, 0, 0, 0, 0),
+                      physics.Ball(1000 + int(20 * 2 ** 0.5) * 2 + 4, 437 + 44, 437 + 44, 20, 0, 0, 0, 0),
+                      physics.Ball(1000 + int(20 * 2 ** 0.5) * 2 + 4, 437 - 44, 437 + 44, 20, 0, 0, 0, 0), 
+                      physics.Ball(1000 + int(20 * 2 ** 0.5) * 2 + 4, 437 + 44, 437 - 44, 20, 0, 0, 0, 0), 
+                      physics.Ball(1000 + int(20 * 2 ** 0.5) * 2 + 4, 437 - 44, 437 - 44, 20, 0, 0, 0, 0), 
+                      physics.Ball(1000 + int(20 * 2 ** 0.5) * 2 + 4, 437, 437 + 44, 20, 0, 0, 0, 0), 
+                      physics.Ball(1000 + int(20 * 2 ** 0.5) * 2 + 4, 437 + 44, 437, 20, 0, 0, 0, 0), 
+                      physics.Ball(1000 + int(20 * 2 ** 0.5) * 2 + 4, 437, 437 - 44, 20, 0, 0, 0, 0), 
+                      physics.Ball(1000 + int(20 * 2 ** 0.5) * 2 + 4, 437 - 44, 437, 20, 0, 0, 0, 0)
                       ]
         self.holes = []
-        self.box = physics.Box(300, 300, 300, self.balls, self.holes, 0.001, 0.001)
+        self.box = physics.Box(sizeX, sizeY, sizeZ, self.balls, self.holes, 0.003, 0.003)
     
     def keyPressEvent(self, event):
         key = event.key()
