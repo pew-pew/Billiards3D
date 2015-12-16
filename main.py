@@ -2,52 +2,53 @@ import sys
 from PyQt5.Qt import *
 import phisi as physics
 import plani as planimetry
-from collections import deque
+from render import *
+from billiards import *
 
-
-class BilliardsWidget(QWidget):
+class Game(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.resize(1000, 500)
         
-        self.initBox()
-        self.initBaseProperties()
+        sizeX, sizeY, sizeZ = 500, 500, 500
+        r = 40
+        sp = r / 2
         
-        self.timer = QBasicTimer()
-        self.timer.start(10, self)
-    
-    def initBaseProperties(self):
-        self.setFixedSize(300, 300)
-        self.move(300, 300)
-    
-    def initBox(self):
-        sizeX, sizeY, sizeZ = 300, 300, 300
+        balls = [physics.Ball(100, 100, 400, 20, 1, 0, 0, 0),
+                 physics.Ball(100, 100, 100, 20, 1, 0, 0, 0),
+                 physics.Ball(100, 300, 400, 20, 1, 0, 0, 0)]
         
-        #             physics.Ball(x, y, z, R, m, vx, vy, vz)
-        self.balls = [physics.Ball(250, 130, 150, 20, 1, 1.5, 0.3, 0),
-                      physics.Ball(200, 160, 150, 20, 1, 1, 2, 0),
-                      ]
-        self.holes = []
-        self.box = physics.Box(300, 300, 300, self.balls, self.holes, 0, 0)
-    
-    def drawBalls(self):
-        painter = QPainter(self)
-        for ball in self.balls:
-            sp = ball.sphere
-            x, y, z, r = sp.x, sp.y, sp.z, sp.R
+        
+        
+        holes = [physics.Hole(sp, sp, sp, r), 
+                physics.Hole(sizeX - sp, sp, sp, r), 
+                physics.Hole(sp, sizeY - sp, sp, r),
+                physics.Hole(sp, sp, sizeZ - sp, r), 
+                physics.Hole(sizeX - sp, sizeY - sp, sp, r),
+                physics.Hole(sizeX - sp, sp, sizeZ - sp, r),
+                physics.Hole(sp, sizeY - sp, sizeZ - sp, r),
+                physics.Hole(sizeX - sp, sizeY - sp, sizeZ - sp, r),
+                physics.Hole(sizeX // 2, sizeY - sp, sizeZ - sp, r),
+                physics.Hole(sizeX // 2, sizeY - sp, sp, r), 
+                physics.Hole(sizeX // 2, sp, sizeZ - sp, r),
+                physics.Hole(sizeX // 2, sp, sp, r),
+                ]
+        
+        box = physics.Box(sizeX, sizeY, sizeZ, balls, holes, 0.005, 0.005)
+        
+        vbox = QVBoxLayout()
+        self.billiards = BilliardsWidget(None, box)
+        vbox.addWidget(self.billiards)
+        self.setLayout(vbox)
             
-            rect = QRect(x - r, y - r, r * 2, r * 2)
-            painter.drawEllipse(rect)
+    def keyPressEvent(self, event):
+        return self.billiards.keyPressEvent(event)
     
-    def paintEvent(self, event):
-        physics.Box.movement(self.box)
-        self.drawBalls()
-    
-    def timerEvent(self, event):
-        self.update()
-
+    def keyReleaseEvent(self, event):
+        return self.billiards.keyReleaseEvent(event)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    widget = BilliardsWidget()
+    widget = Game()
     widget.show()
     sys.exit(app.exec_())

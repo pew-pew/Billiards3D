@@ -1,4 +1,5 @@
 from plani import * #/KDqDmyKg
+import sys
 
 class Hole:
     def __init__(self, x, y, z, R):
@@ -13,9 +14,15 @@ class Hole:
 class Ball:
     def __init__(self, x, y, z, R, m, vx, vy, vz):
         self.sphere = Sphere(x, y, z, R)
+        self.m = m
         self.speed = Vector(vx, vy, vz)
         self.Nspeed = Vector(vx, vy, vz)
         self.misticsphere = Sphere(x + vx, y + vy, z + vz, R)
+        
+        self._inHole = False
+    
+    def isInHole(self):
+        return self._inHole
         
     def move(self):
         self.speed = self.Nspeed
@@ -30,16 +37,15 @@ class Ball:
     def dist(self, other):
         return self.sphere.dist(other.sphere)
     
-    def isInHole(self, holes):
+    def _isInHole(self, holes):
         for hole in holes:
             if Sphere(hole.sphere.x, hole.sphere.y, hole.sphere.z, hole.sphere.R - self.misticsphere.R).dist(self.misticsphere) < 0:
-                self.Nspeed = Vector(0, 0, 0)
                 return True
-        else:
-            return False    
+        return False
     
     def resistanse(self, resistanse):
-        if abs(self.speed) < 0.1:
+        #           V      speed changed to Nspeed!------------------------------------------
+        if abs(self.Nspeed) < 0.1:
             self.Nspeed = Vector(0, 0, 0)
         else:
             self.speed.x = self.speed.x - self.speed.x * resistanse
@@ -47,7 +53,7 @@ class Ball:
             self.speed.z = self.speed.z - self.speed.z * resistanse
         
     def hit(self, direction, forse):
-        self.speed += direction * forse / self.m    
+        self.Nspeed += direction * forse * (1 / self.m)
     
     def wall(self, SIZE_X, SIZE_Y, SIZE_Z, wall_resistanse):
         if self.misticsphere.x - self.sphere.R <= 0 or self.misticsphere.x + self.sphere.R >= SIZE_X:
@@ -72,14 +78,22 @@ class Box:
         self.wall_resistanse = wall_resistanse
 
     def movement(self):
-        points = len(self.balls)
-        for ball in self.balls:
+        ballsForCheck = list(filter(lambda b: not b.isInHole(), self.balls))
+        
+        for ball in ballsForCheck:
             ball.wall(self.sizeX, self.sizeY, self.sizeZ, self.wall_resistanse)
-        for ball in self.balls:
+        
+        for ball in ballsForCheck:
             ball.resistanse(self.resistanse)
-        for i in range(len(self.balls)):
-            for j in range(i + 1, len(self.balls)):
-                if self.balls[i].dist(self.balls[j]) <= 0:
-                    self.balls[i].crash(self.balls[j])
-        for ball in self.balls:
+        
+        for i in range(len(ballsForCheck)):
+            for j in range(i + 1, len(ballsForCheck)):
+                if ballsForCheck[i].dist(ballsForCheck[j]) <= 0:
+                    ballsForCheck[i].crash(ballsForCheck[j])
+        
+        for ball in ballsForCheck:
             ball.move()
+        
+        for ball in ballsForCheck:
+            if ball._isInHole(self.holes):
+                ball._inHole = True
