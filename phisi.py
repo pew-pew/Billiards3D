@@ -30,10 +30,10 @@ class Ball:
     def dist(self, other):
         return self.sphere.dist(other.sphere)
     
-    def isInHole(self):
+    def isInHole(self, holes):
         for hole in holes:
-            if dist(hole.sphere, self.misticsphere) < 0:
-                self.speed = Vector(0, 0, 0)
+            if Sphere(hole.sphere.x, hole.sphere.y, hole.sphere.z, hole.sphere.R - self.misticsphere.R).dist(self.misticsphere) < 0:
+                self.Nspeed = Vector(0, 0, 0)
                 return True
         else:
             return False    
@@ -77,10 +77,6 @@ class Box:
             ball.wall(self.sizeX, self.sizeY, self.sizeZ, self.wall_resistanse)
         for ball in self.balls:
             ball.resistanse(self.resistanse)
-        
-        for ball in self.balls:
-            for hole in self.holes:
-                hole.score(ball)
         for i in range(len(self.balls)):
             for j in range(i + 1, len(self.balls)):
                 if self.balls[i].dist(self.balls[j]) <= 0:

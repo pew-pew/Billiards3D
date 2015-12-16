@@ -109,15 +109,22 @@ class Camera:
         
         spheres = []
         for ball in self.box.balls:
-            x, y, z, r = ball.sphere.x, ball.sphere.y, ball.sphere.z, ball.sphere.R
+            if not ball.isInHole(self.box.holes):
+                x, y, z, r = ball.sphere.x, ball.sphere.y, ball.sphere.z, ball.sphere.R
+                x, y, z = translate(x, y, z, -self.x, -self.y, -self.z)
+                x, y, z = rotate(x, y, z, -self.rotOX, -self.rotOY, -self.rotOZ)
+                spheres.append([z, x, y, r, 'ball'])
+            
+        for hole in self.box.holes:
+            x, y, z, r = hole.sphere.x, hole.sphere.y, hole.sphere.z, hole.sphere.R
             x, y, z = translate(x, y, z, -self.x, -self.y, -self.z)
             x, y, z = rotate(x, y, z, -self.rotOX, -self.rotOY, -self.rotOZ)
-            spheres.append([z, x, y, r])
+            spheres.append([z, x, y, r, 'hole'])            
         
         spheres.sort(reverse=True)
         painter.setPen(Qt.SolidLine)
         for sphere in spheres:
-            z, x, y, r = sphere
+            z, x, y, r, ball_hole = sphere
             #if z < 0: continue
             
             x0, y0 = self.transCanv(x - r, y - r, z, width, height)
@@ -125,7 +132,10 @@ class Camera:
             
             k = min(1, max(0, z / (sizeX ** 2 + sizeY ** 2 + sizeZ ** 2) ** 0.5))
             
-            painter.setBrush(QColor(0, 255 * (1 - k), 255 * k))
+            if ball_hole == 'ball':
+                painter.setBrush(QColor(0, 255 * (1 - k), 255 * k))
+            else:
+                painter.setBrush(QColor(0, 0, 0))
             painter.drawEllipse(x0, y0, x1 - x0, y1 - y0)
             #painter.drawText((x0 + x1) / 2 , (y0 + y1) / 2, str(int(z)))
         
@@ -172,7 +182,7 @@ class BilliardsWidget(QWidget):
     def initWidgets(self):
         self.cameraView = CameraViewWidget(self, camera=Camera(self.box,
                                                                width=600, height=600,
-                                                               x=150, y=150, z=-150))
+                                                               x=100, y=437, z=437))
         
         vbox = QHBoxLayout()
         vbox.addWidget(self.cameraView)
@@ -186,7 +196,7 @@ class BilliardsWidget(QWidget):
         #             physics.Ball(x, y, z, R, m, vx, vy, vz)
         self.balls = [#physics.Ball(250, 130, 150, 20, 1, 1.5, 0.3, 1),
                       #physics.Ball(200, 160, 150, 20, 1, 1, 2, 1),
-                      #physics.Ball(50, 60, 150, 20, 1, 2, 0.5, 1),
+                      physics.Ball(150, 150, 150, 20, 1, -1, -1, -1),
                       physics.Ball(437, 437, 437, 20, 0, 10, 0, 0),
                       physics.Ball(1000 - 1, 437, 437, 20, 0, 0, 0, 0),
                       physics.Ball(1000 + int(20 * 2 ** 0.5) + 2, 437 + 22, 437 + 22, 20, 0, 0, 0, 0),
@@ -203,7 +213,19 @@ class BilliardsWidget(QWidget):
                       physics.Ball(1000 + int(20 * 2 ** 0.5) * 2 + 4, 437, 437 - 44, 20, 0, 0, 0, 0), 
                       physics.Ball(1000 + int(20 * 2 ** 0.5) * 2 + 4, 437 - 44, 437, 20, 0, 0, 0, 0)
                       ]
-        self.holes = []
+
+        self.holes = [physics.Hole(0, 0, 0, 45), 
+                      physics.Hole(sizeX, 0, 0, 45), 
+                      physics.Hole(0, sizeY, 0, 45),
+                      physics.Hole(0, 0, sizeZ, 45), 
+                      physics.Hole(sizeX, sizeY, 0, 45),
+                      physics.Hole(sizeX, 0, sizeZ, 45),
+                      physics.Hole(0, sizeY, sizeZ, 45),
+                      physics.Hole(sizeX, sizeY, sizeZ, 45),
+                      physics.Hole(sizeX // 2, sizeY, sizeZ, 45),
+                      physics.Hole(sizeX // 2, sizeY, 0, 45), 
+                      physics.Hole(sizeX // 2, 0, sizeZ, 45),
+                      physics.Hole(sizeX // 2, 0, 0, 45)]
         self.box = physics.Box(sizeX, sizeY, sizeZ, self.balls, self.holes, 0.003, 0.003)
     
     def keyPressEvent(self, event):
