@@ -198,15 +198,43 @@ class Camera:
         self.painter = None
     
     def getBallAt(self, tx, ty):
-        for ball in self.box.balls:
-            if ball.isInHole():
-                continue
-            sphere = ball.sphere
-            x, y, z, r = sphere.x, sphere.y, sphere.z, sphere.R
-            x, y, z = self.alignForCamera(x, y, z)
-            if (x - tx) ** 2 + (y - ty) ** 2 <= r ** 2:
-                return ball
-        return None
+        selected = None
+        minZ = float("inf")
+        if self.perspective:
+            for ball in self.box.balls:
+                sphere = ball.sphere
+                x, y, z, r = sphere.x, sphere.y, sphere.z, sphere.R
+                
+                x, y, z = self.alignForCamera(x, y, z)
+                x1, y1 = x - r, y - r
+                x2, y2 = x + r, y + r
+                x1, y1, z1 = self.transformPerspective(x1, y1, z)
+                x2, y2, z2 = self.transformPerspective(x2, y2, z)
+                
+                x, y, z = (x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2
+                r = abs(x1 - x2) / 2
+                
+                if z <= 0 or ball.isInHole():
+                    continue
+                
+                if (x - tx) ** 2 + (y- ty) ** 2 <= r ** 2:
+                    if minZ > z:
+                        selected = ball
+                        minZ = z
+        else:
+            for ball in self.box.balls:
+                if ball.isInHole():
+                    continue
+                sphere = ball.sphere
+                x, y, z, r = sphere.x, sphere.y, sphere.z, sphere.R
+                x, y, z = self.alignForCamera(x, y, z)
+                if self.perspective:
+                    pass
+                if (x - tx) ** 2 + (y - ty) ** 2 <= r ** 2:
+                    if minZ > z:
+                        selected = ball
+                        minZ = z
+        return selected
 
 
 class Communication(QObject):
@@ -251,10 +279,7 @@ class CameraViewWidget(QWidget):
         y = y / ky - ch / 2
         x = x / kx - cw / 2
         
-        if self.camera.perspective:
-            return (0, 0) #  should be strange formula----------
-        else:
-            return (x, y)
+        return (x, y)
     
     def mousePressEvent(self, event):
         if event.button() != Qt.LeftButton:

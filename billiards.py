@@ -14,13 +14,17 @@ class BilliardsWidget(QWidget):
             self.initWindowGeometry()
         self.initWidgets()
         
-        self.spectatorSpeed = [0, 0, 0]
+        self.spectatorSpeedDirection = [0, 0, 0]
+        self.spectatorSpeedValue = 1
+        
+        self.selectedBall = None
+        self.hitDirection = planimetry.Vector(0, 0, 0)
+        self.hitForce = 5
+        
         self.lastMousePos = None
         
         self.timer = QBasicTimer()
         self.timer.start(10, self)
-        
-        self.cameraView.ballSelected.connect(self.ballSelected)
     
     def initWindowGeometry(self):
         #self.resize(1000, 500)
@@ -32,66 +36,95 @@ class BilliardsWidget(QWidget):
         sizeY = self.box.sizeY
         sizeZ = self.box.sizeZ
         
+        #camera = Camera(self.box,
+                        #viewWidth=sizeX*1.5, viewHeight=sizeY*1.5,
+                        #x=(sizeX / 2), y=(sizeY / 2), z=(sizeZ / 2))
+        
+        #cameraView = CameraViewWidget(None, camera)
+        
         camera = Camera(self.box,
-                        viewWidth=sizeX*1.5, viewHeight=sizeY*1.5,
-                        x=(sizeX / 2), y=(sizeY / 2), z=(sizeZ / 2))
-        
-        cameraView = CameraViewWidget(None, camera)
-        
-        cameraP = Camera(self.box,
                         viewWidth=sizeX*1.5, viewHeight=sizeY*1.5,
                         x=(sizeX / 2), y=(sizeY / 2), z=(sizeZ / 2),
                         perspective=True)
-        cameraViewP = CameraViewWidget(None, cameraP)
+        cameraView = CameraViewWidget(None, camera)
         
         
         self.camera = camera
         self.cameraView = cameraView
-        self.cameraP = cameraP
-        self.cameraViewP = cameraViewP
+        
+        self.cameraView.ballSelected.connect(self.ballSelected)
     
     def initWidgets(self):
         self.initCamera()
         
-        hbox = QHBoxLayout()
-        hbox.setContentsMargins(0, 0, 0, 0)
-        hbox.addWidget(self.cameraView)
-        hbox.addWidget(self.cameraViewP)
+        self.hitButton = QPushButton("Hit")
+        self.hitButton.clicked.connect(self.hitEvent)
         
-        self.setLayout(hbox)
+        self.forceSlider = QSlider(Qt.Horizontal)
+        self.forceSlider.setTickInterval(1)
+        self.forceSlider.valueChanged.connect(self.hitForceChangeEvent)
+        
+        cameraLayout = QHBoxLayout()
+        cameraLayout.setContentsMargins(0, 0, 0, 0)
+        cameraLayout.addWidget(self.cameraView)
+        
+        controlsLayout = QHBoxLayout()
+        controlsLayout.setContentsMargins(0, 0, 0, 0)
+        controlsLayout.addWidget(self.hitButton)
+        controlsLayout.addWidget(self.forceSlider)
+        
+        mainLayout = QVBoxLayout()
+        cameraLayout.setContentsMargins(0, 0, 0, 0)
+        mainLayout.addLayout(cameraLayout)
+        mainLayout.addLayout(controlsLayout)
+        
+        self.setLayout(mainLayout)
     
-    #def resizeEvent(self, event):
-        #self.cameraView.resize(self.size())
+    def hitEvent(self, event):
+        if self.selectedBall:
+            print(event)
+            self.selectedBall.hit(self.hitDirection, self.hitForce)
+            self.selectedBall = None
+    
+    def hitForceChangeEvent(self, value):
+        self.hitForce = value / 10
+        print(self.hitForce)
     
     def keyPressEvent(self, event):
         key = event.key()
         if key == Qt.Key_A:
-            self.spectatorSpeed[0] -= 1
+            self.spectatorSpeedDirection[0] -= 1
         if key == Qt.Key_D:
-            self.spectatorSpeed[0] += 1
+            self.spectatorSpeedDirection[0] += 1
         if key == Qt.Key_Q:
-            self.spectatorSpeed[1] -= 1
+            self.spectatorSpeedDirection[1] -= 1
         if key == Qt.Key_E:
-            self.spectatorSpeed[1] += 1
+            self.spectatorSpeedDirection[1] += 1
         if key == Qt.Key_S:
-            self.spectatorSpeed[2] -= 1
+            self.spectatorSpeedDirection[2] -= 1
         if key == Qt.Key_W:
-            self.spectatorSpeed[2] += 1
+            self.spectatorSpeedDirection[2] += 1
+        
+        if key == Qt.Key_Shift:
+            self.spectatorSpeedValue = 4
     
     def keyReleaseEvent(self, event):
         key = event.key()
         if key == Qt.Key_A:
-            self.spectatorSpeed[0] += 1
+            self.spectatorSpeedDirection[0] += 1
         if key == Qt.Key_D:
-            self.spectatorSpeed[0] -= 1
+            self.spectatorSpeedDirection[0] -= 1
         if key == Qt.Key_Q:
-            self.spectatorSpeed[1] += 1
+            self.spectatorSpeedDirection[1] += 1
         if key == Qt.Key_E:
-            self.spectatorSpeed[1] -= 1
+            self.spectatorSpeedDirection[1] -= 1
         if key == Qt.Key_S:
-            self.spectatorSpeed[2] += 1
+            self.spectatorSpeedDirection[2] += 1
         if key == Qt.Key_W:
-            self.spectatorSpeed[2] -= 1
+            self.spectatorSpeedDirection[2] -= 1
+        
+        if key == Qt.Key_Shift:
+                    self.spectatorSpeedValue = 1
     
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -106,8 +139,6 @@ class BilliardsWidget(QWidget):
         dx, dy = x - lastX, y - lastY
         self.camera.rotOX -= dy / 100
         self.camera.rotOY -= dx / 100
-        self.cameraP.rotOX -= dy / 100
-        self.cameraP.rotOY -= dx / 100
         
         self.lastMousePos = [x, y]
     
@@ -117,17 +148,26 @@ class BilliardsWidget(QWidget):
     
     def ballSelected(self, ball, camera):
         if camera.perspective:
-            pass #  shuold be something-------------------------
+            direction = (planimetry.Vector(ball.sphere.x, ball.sphere.y, ball.sphere.z) -
+                       planimetry.Vector(camera.x, camera.y, camera.z))
+            if abs(direction) == 0:
+                return
+            
+            self.hitDirection = direction * (1 / abs(direction))
         else:
             x, y, z = rotate(0, 0, 1, camera.rotOX, camera.rotOY, camera.rotOZ, reverse=True)
             f = 5
             
-            direction = planimetry.Vector(x, y, z)
-            ball.hit(direction, f)
+            self.hitDirection = planimetry.Vector(x, y, z)
+        self.selectedBall = ball
+    
+    def moveSpectator(self):
+        x, y, z = self.spectatorSpeedDirection
+        v = self.spectatorSpeedValue
+        self.camera.moveLocal(x * v, y * v, z * v)
 
     def timerEvent(self, event):
-        self.camera.moveLocal(*self.spectatorSpeed)
-        self.cameraP.moveLocal(*self.spectatorSpeed)
+        self.moveSpectator()
         
         self.box.movement()
         self.update()

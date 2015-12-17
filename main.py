@@ -8,7 +8,7 @@ from billiards import *
 class Game(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.resize(1000, 500)
+        self.resize(600, 600)
         
         sizeX, sizeY, sizeZ = 500, 500, 500
         r = 40
