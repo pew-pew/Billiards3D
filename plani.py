@@ -29,9 +29,14 @@ class Vector:
    
     def __abs__(self):
         return (self.x ** 2 + self.y ** 2 + self.z ** 2) ** 0.5
+    
+    def lenSq(self):
+        return self.x ** 2 + self.y ** 2 + self.z ** 2
    
 
 def progection(self, other):
+    if abs(other) == 0:
+        return Vector(0, 0, 0)
     X = self.x
     Y = self.y
     Z = self.z

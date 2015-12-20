@@ -20,9 +20,6 @@ class Ball:
         self.misticsphere = Sphere(x + vx, y + vy, z + vz, R)
         
         self._inHole = False
-    
-    def isInHole(self):
-        return self._inHole
         
     def move(self):
         self.speed = self.Nspeed
@@ -33,15 +30,15 @@ class Ball:
         self.misticsphere.y += self.speed.y
         self.misticsphere.z += self.speed.z
         
-        
     def dist(self, other):
         return self.sphere.dist(other.sphere)
     
-    def _isInHole(self, holes):
-        for hole in holes:
-            if Sphere(hole.sphere.x, hole.sphere.y, hole.sphere.z, hole.sphere.R - self.misticsphere.R).dist(self.misticsphere) < 0:
-                return True
-        return False
+    
+    def isInHole(self):
+        return self._inHole    
+    
+    def _isInHole(self, hole):
+        return (Sphere(hole.sphere.x, hole.sphere.y, hole.sphere.z, hole.sphere.R - self.misticsphere.R).dist(self.misticsphere)) < 0
     
     def resistanse(self, resistanse):
         #           V      speed changed to Nspeed!------------------------------------------
@@ -58,13 +55,26 @@ class Ball:
     def wall(self, SIZE_X, SIZE_Y, SIZE_Z, wall_resistanse):
         if self.misticsphere.x - self.sphere.R <= 0 or self.misticsphere.x + self.sphere.R >= SIZE_X:
             self.speed.x = self.speed.x * (-1 + wall_resistanse)
+            return True
         if self.misticsphere.y - self.sphere.R <= 0 or self.misticsphere.y + self.sphere.R >= SIZE_Y:
             self.speed.y = self.speed.y * (-1 + wall_resistanse)
+            return True
         if self.misticsphere.z - self.sphere.R <= 0 or self.misticsphere.z + self.sphere.R >= SIZE_Z:
             self.speed.z = self.speed.z * (-1 + wall_resistanse)
+            return True
+        return False
         
     def crash(self, other):
         self.Nspeed, other.Nspeed = bump(self.Nspeed, other.Nspeed, Vector(self.sphere.x - other.sphere.x, self.sphere.y - other.sphere.y, self.sphere.z - other.sphere.z))
+    
+    def placeAt(self, x, y, z):
+        self.speed = Vector(0, 0, 0)
+        self.Nspeed = Vector(0, 0, 0)
+        self.sphere = Sphere(x, y, z, self.sphere.R)
+        self.misticsphere = Sphere(x, y, z, self.sphere.R)
+        
+        self._inHole = False
+        
         
 
 class Box:
@@ -76,12 +86,18 @@ class Box:
         self.holes = holes
         self.resistanse = resistanse
         self.wall_resistanse = wall_resistanse
+        
+        self.ballHitCallback = None
+        self.wallHitCallback = None
+        self.inHoleCallback = None
 
     def movement(self):
         ballsForCheck = list(filter(lambda b: not b.isInHole(), self.balls))
         
         for ball in ballsForCheck:
-            ball.wall(self.sizeX, self.sizeY, self.sizeZ, self.wall_resistanse)
+            result = ball.wall(self.sizeX, self.sizeY, self.sizeZ, self.wall_resistanse)
+            if result and self.wallHitCallback:
+                self.wallHitCallback(ball)
         
         for ball in ballsForCheck:
             ball.resistanse(self.resistanse)
@@ -90,10 +106,15 @@ class Box:
             for j in range(i + 1, len(ballsForCheck)):
                 if ballsForCheck[i].dist(ballsForCheck[j]) <= 0:
                     ballsForCheck[i].crash(ballsForCheck[j])
+                    self.ballHitCallback(ballsForCheck[i], ballsForCheck[j])
         
         for ball in ballsForCheck:
             ball.move()
         
         for ball in ballsForCheck:
-            if ball._isInHole(self.holes):
-                ball._inHole = True
+            for hole in self.holes:
+                if ball._isInHole(hole):
+                    ball._inHole = True
+                    if self.inHoleCallback:
+                        self.inHoleCallback(ball, hole)
+        

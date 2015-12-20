@@ -83,7 +83,7 @@ class Camera:
         return (x, y, z)
     
     def transformPerspective(self, x, y, z):
-        k = 300 / max(0.001, z)
+        k = max(self.box.sizeX, self.box.sizeY, self.box.sizeZ) / 2 / max(0.001, z)
         x *= k
         y *= k
         return (x, y, z)
@@ -103,6 +103,9 @@ class Camera:
         self.canvasWidth = width
         self.canvasHeight = height
         self.painter = painter
+        
+        sizeX, sizeY, sizeZ = self.box.sizeX, self.box.sizeY, self.box.sizeZ
+        maxSize = max(sizeX, sizeY, sizeZ)
         
         #self.renderBackgound()
         
@@ -125,19 +128,19 @@ class Camera:
             x, y, z, r = sphere.x, sphere.y, sphere.z, sphere.R
             x, y, z = self.alignForCamera(x, y, z)
             
-            try:
-                color = ball.color
-            except:
-                k = max(0, min(1, z / 300)) #  --------------------------------
-                color = QColor(k * 255, 50, (1 - k) * 255)
+            k = max(0, min(1, z / maxSize))
             
-            alignedSpheres.append([x, y, z, r, color])
+            fillColor = QColor(*ball.fillColor)
+            borderColor = QColor(*ball.borderColor)
+            
+            alignedSpheres.append([x, y, z, r, fillColor, borderColor])
         
         for hole in self.box.holes:
             sphere = hole.sphere
             x, y, z, r = sphere.x, sphere.y, sphere.z, sphere.R
             x, y, z = self.alignForCamera(x, y, z)
-            alignedSpheres.append([x, y, z, r, QColor(0, 0, 0)])
+            alignedSpheres.append([x, y, z, r, QColor(0, 0, 0), QColor(0, 0, 0)])
+        
         
         alignedSpheres.sort(reverse=True, key=lambda x: x[2])
         
@@ -152,8 +155,7 @@ class Camera:
                 self.painter.drawLine(x1, y1, x2, y2)
             
             #----render spheres----
-            painter.setPen(Qt.SolidLine)
-            for x, y, z, r, color in alignedSpheres:
+            for x, y, z, r, fillColor, borderColor in alignedSpheres:
                 if z <= 0:
                     continue
                 x1, y1 = x - r, y - r
@@ -162,7 +164,14 @@ class Camera:
                 x2, y2, z2 = self.transformPerspective(x2, y2, z)
                 x1, y1 = self.alignForCanvas(x1, y1)
                 x2, y2 = self.alignForCanvas(x2, y2)
-                painter.setBrush(color)
+                
+                painter.setBrush(fillColor)
+                painter.setPen(borderColor)
+                
+                pen = painter.pen()
+                pen.setWidth(2.5)
+                painter.setPen(pen)
+                
                 self.painter.drawEllipse(x1, y1, x2 - x1, y2 - y1)
         else:
             #----render far edges----
@@ -175,13 +184,19 @@ class Camera:
                 self.painter.drawLine(x1, y1, x2, y2)
             
             #----render spheres----
-            painter.setPen(Qt.SolidLine)
-            for x, y, z, r, color in alignedSpheres:
+            for x, y, z, r, fillColor, borderColor in alignedSpheres:
                 x1, y1 = x - r, y - r
                 x2, y2 = x + r, y + r
                 x1, y1 = self.alignForCanvas(x1, y1)
                 x2, y2 = self.alignForCanvas(x2, y2)
-                painter.setBrush(color)
+                
+                painter.setBrush(fillColor)
+                painter.setPen(borderColor)
+                
+                pen = painter.pen()
+                pen.setWidth(2.5)
+                painter.setPen(pen)
+                
                 self.painter.drawEllipse(x1, y1, x2 - x1, y2 - y1)
             
             #----render 3 closest edges----
@@ -237,16 +252,20 @@ class Camera:
         return selected
 
 
-class Communication(QObject):
+class CommunicationBallSelected(QObject):
     ballSelected = pyqtSignal(physics.Ball, Camera)
 
 
 class CameraViewWidget(QWidget):
     def __init__(self, parent=None, camera=None):
         super().__init__(parent)
+        
         self.camera = camera
-        self.communication = Communication()
+        
+        self.communication = CommunicationBallSelected()
         self.ballSelected = self.communication.ballSelected
+        
+        self.drawCenter = False
     
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -256,9 +275,15 @@ class CameraViewWidget(QWidget):
         sizeMin = min(w, h)
         sizeMax = max(w, h)
         
-        painter.fillRect(0, 0, w, h, QBrush(Qt.white, Qt.SolidPattern))
+        painter.fillRect(0, 0, w, h, QBrush(QColor(230, 230, 235), Qt.SolidPattern))
         painter.translate((w - sizeMin) / 2, (h - sizeMin) / 2)
         self.camera.render(painter, sizeMin, sizeMin)
+        
+        if self.drawCenter:
+            r = sizeMin / 200
+            painter.setPen(Qt.SolidLine)
+            painter.setBrush(QColor(255, 0, 0))
+            painter.drawEllipse(sizeMin / 2 - r, sizeMin / 2 - r, r * 2, r * 2)
     
     def onCamera(self, x, y):
         w = self.width()

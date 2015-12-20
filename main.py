@@ -1,51 +1,45 @@
 import sys
 from PyQt5.Qt import *
-import phisi as physics
-import plani as planimetry
-from render import *
 from billiards import *
+from gameController import *
+from importer import *
+from gameModeSelection import *
 
 class Game(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.resize(600, 600)
         
-        sizeX, sizeY, sizeZ = 500, 500, 500
-        r = 40
-        sp = r / 2
+        self.billiardsWidget = None
         
-        balls = [physics.Ball(100, 100, 400, 20, 1, 0, 0, 0),
-                 physics.Ball(100, 100, 100, 20, 1, 0, 0, 0),
-                 physics.Ball(100, 300, 400, 20, 1, 0, 0, 0)]
+        self.gameModeSelectionWidget = GameModeSelectionWidget(self)
+        self.gameModeSelectionWidget.gameModeChosen.connect(self.playBeginEvent)
         
-        
-        
-        holes = [physics.Hole(sp, sp, sp, r), 
-                physics.Hole(sizeX - sp, sp, sp, r), 
-                physics.Hole(sp, sizeY - sp, sp, r),
-                physics.Hole(sp, sp, sizeZ - sp, r), 
-                physics.Hole(sizeX - sp, sizeY - sp, sp, r),
-                physics.Hole(sizeX - sp, sp, sizeZ - sp, r),
-                physics.Hole(sp, sizeY - sp, sizeZ - sp, r),
-                physics.Hole(sizeX - sp, sizeY - sp, sizeZ - sp, r),
-                physics.Hole(sizeX // 2, sizeY - sp, sizeZ - sp, r),
-                physics.Hole(sizeX // 2, sizeY - sp, sp, r), 
-                physics.Hole(sizeX // 2, sp, sizeZ - sp, r),
-                physics.Hole(sizeX // 2, sp, sp, r),
-                ]
-        
-        box = physics.Box(sizeX, sizeY, sizeZ, balls, holes, 0.005, 0.005)
+        self.stack = QStackedWidget()
+        self.stack.addWidget(self.gameModeSelectionWidget)
         
         vbox = QVBoxLayout()
-        self.billiards = BilliardsWidget(None, box)
-        vbox.addWidget(self.billiards)
+        vbox.addWidget(self.stack)
+        
+        vbox.setContentsMargins(0, 0, 0, 0)
+        
         self.setLayout(vbox)
-            
+    
+    def playBeginEvent(self, gameController):
+        self.billiardsWidget = BilliardsWidget(None, gameController)
+        self.billiardsWidget.gameController.gameEndCallback = self.playEndEvent
+        self.stack.addWidget(self.billiardsWidget)
+        self.stack.setCurrentIndex(1)
+    
+    def playEndEvent(self):
+        self.stack.removeWidget(self.billiardsWidget)
+        
     def keyPressEvent(self, event):
         return self.billiards.keyPressEvent(event)
     
     def keyReleaseEvent(self, event):
         return self.billiards.keyReleaseEvent(event)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

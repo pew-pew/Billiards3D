@@ -3,49 +3,86 @@ from PyQt5.Qt import*
 import phisi as physics
 import plani as planimetry
 from render import *
+from gameController import *
+
+oldBall = physics.Ball
+
+class Ball(oldBall):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.selectedColor = (0, 190, 0)
+        self.diselectedColor = (0, 0, 0)
+        
+        self.fillColor = (160, 160, 160)
+        self.borderColor = self.diselectedColor
+        
+        self.canBeSelected = False
+    
+    def select(self):
+        self.borderColor = self.selectedColor
+    
+    def diselect(self):
+        self.borderColor = self.diselectedColor
+
+physics.Ball = Ball
+
+
+class CommunicationGameEnd(QObject):
+    gameEnded = pyqtSignal()
 
 
 class BilliardsWidget(QWidget):
-    def __init__(self, parent=None, box=physics.Box(300, 300, 300, [], [], 0.01, 0)):
+    def __init__(self, parent=None, gameControllerClass=BaseGameController):
         super().__init__(parent)
         
-        self.box = box
-        if not parent:
+        self.box = physics.Box(500, 500, 500, [], [], 0.005, 0.005)
+        
+        self.initGameMode(gameControllerClass)
+        
+        if parent is None:
             self.initWindowGeometry()
         self.initWidgets()
         
         self.spectatorSpeedDirection = [0, 0, 0]
         self.spectatorSpeedValue = 1
+        self.spectatorRotationSpeed = 1
         
         self.selectedBall = None
         self.hitDirection = planimetry.Vector(0, 0, 0)
-        self.hitForce = 5
+        self.hitForce = 0
         
         self.lastMousePos = None
+        
+        self.gameController._gameInit()
+        self.gameController._gameStart()
         
         self.timer = QBasicTimer()
         self.timer.start(10, self)
     
     def initWindowGeometry(self):
-        #self.resize(1000, 500)
-        #self.move(300, 150)
-        pass
+        self.resize(1000, 500)
+    
+    def initGameMode(self, gameControllerClass):
+        self.gameController = gameControllerClass(self)
+        
+        self.box.ballHitCallback = self.gameController.ballHitEvent
+        self.box.wallHitCallback = self.gameController.wallHitEvent
+        self.box.inHoleCallback = self.gameController.inHoleEvent
+        
+        self.isNewTurn = False
         
     def initCamera(self):
         sizeX = self.box.sizeX
         sizeY = self.box.sizeY
         sizeZ = self.box.sizeZ
-        
-        #camera = Camera(self.box,
-                        #viewWidth=sizeX*1.5, viewHeight=sizeY*1.5,
-                        #x=(sizeX / 2), y=(sizeY / 2), z=(sizeZ / 2))
-        
-        #cameraView = CameraViewWidget(None, camera)
+        sizeMax = max(sizeX, sizeY, sizeZ)
         
         camera = Camera(self.box,
-                        viewWidth=sizeX*1.5, viewHeight=sizeY*1.5,
-                        x=(sizeX / 2), y=(sizeY / 2), z=(sizeZ / 2),
+                        viewWidth=sizeMax*1.5, viewHeight=sizeMax*1.5,
+                        x=(sizeX / 2), y=(sizeY / 2), z=0,
                         perspective=True)
+        
         cameraView = CameraViewWidget(None, camera)
         
         
@@ -56,6 +93,11 @@ class BilliardsWidget(QWidget):
     
     def initWidgets(self):
         self.initCamera()
+        
+        self.messageLabel = QLabel()
+        self.messageLabel.setAlignment(Qt.AlignHCenter)
+        self.messageLabel.setMaximumHeight(40)
+        self.gameController.setMessageCallback = self.messageLabel.setText
         
         self.hitButton = QPushButton("Hit")
         self.hitButton.clicked.connect(self.hitEvent)
@@ -73,22 +115,58 @@ class BilliardsWidget(QWidget):
         controlsLayout.addWidget(self.hitButton)
         controlsLayout.addWidget(self.forceSlider)
         
-        mainLayout = QVBoxLayout()
-        cameraLayout.setContentsMargins(0, 0, 0, 0)
-        mainLayout.addLayout(cameraLayout)
-        mainLayout.addLayout(controlsLayout)
+        self.exitButton = QPushButton("Exit")
+        self.exitButton.clicked.connect(self.gameController._gameEnd)
         
-        self.setLayout(mainLayout)
+        spacer = QSpacerItem(0, 30)
+        
+        mainGrid = QGridLayout()
+        mainGrid.setContentsMargins(0, 0, 0, 0)
+        #mainGrid.setSpacing(0);
+        
+        cameraLayout.setContentsMargins(0, 0, 0, 0)
+        mainGrid.addWidget(self.messageLabel, 0, 0)
+        mainGrid.addLayout(cameraLayout, 1, 0)
+        mainGrid.addLayout(controlsLayout, 2, 0)
+        mainGrid.addItem(spacer, 3, 0)
+        mainGrid.addWidget(self.exitButton, 4, 0)
+        
+        self.setLayout(mainGrid)
+    
+    def ballSelected(self, ball, camera):
+        if self.isNewTurn or not ball.canBeSelected:
+            return
+        
+        if self.selectedBall:
+            self.selectedBall.diselect()
+        
+        if camera.perspective:
+            direction = (planimetry.Vector(ball.sphere.x, ball.sphere.y, ball.sphere.z) -
+                       planimetry.Vector(camera.x, camera.y, camera.z))
+            if abs(direction) == 0:
+                return
+            
+            hitDirection = direction * (1 / abs(direction))
+        else:
+            x, y, z = rotate(0, 0, 1, camera.rotOX, camera.rotOY, camera.rotOZ, reverse=True)
+            
+            hitDirection = planimetry.Vector(x, y, z)
+        
+        self.hitDirection = hitDirection
+        self.selectedBall = ball
+        
+        ball.select()
     
     def hitEvent(self, event):
         if self.selectedBall:
-            print(event)
             self.selectedBall.hit(self.hitDirection, self.hitForce)
+            self.selectedBall.diselect()
             self.selectedBall = None
+            
+            self.isNewTurn = True
     
     def hitForceChangeEvent(self, value):
         self.hitForce = value / 10
-        print(self.hitForce)
     
     def keyPressEvent(self, event):
         key = event.key()
@@ -107,6 +185,14 @@ class BilliardsWidget(QWidget):
         
         if key == Qt.Key_Shift:
             self.spectatorSpeedValue = 4
+        if key == Qt.Key_Control:
+            self.spectatorRotationSpeed = 0.3
+        
+        if key == Qt.Key_P:
+            self.camera.perspective ^= 1
+        
+        if key == Qt.Key_C:
+            self.cameraView.drawCenter ^= 1
     
     def keyReleaseEvent(self, event):
         key = event.key()
@@ -124,7 +210,9 @@ class BilliardsWidget(QWidget):
             self.spectatorSpeedDirection[2] -= 1
         
         if key == Qt.Key_Shift:
-                    self.spectatorSpeedValue = 1
+            self.spectatorSpeedValue = 1
+        if key == Qt.Key_Control:
+            self.spectatorRotationSpeed = 1
     
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -137,29 +225,14 @@ class BilliardsWidget(QWidget):
         x, y = event.x(), event.y()
         lastX, lastY = self.lastMousePos
         dx, dy = x - lastX, y - lastY
-        self.camera.rotOX -= dy / 100
-        self.camera.rotOY -= dx / 100
+        self.camera.rotOX -= dy / 100 * self.spectatorRotationSpeed
+        self.camera.rotOY -= dx / 100 * self.spectatorRotationSpeed
         
         self.lastMousePos = [x, y]
     
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.lastMousePos = None
-    
-    def ballSelected(self, ball, camera):
-        if camera.perspective:
-            direction = (planimetry.Vector(ball.sphere.x, ball.sphere.y, ball.sphere.z) -
-                       planimetry.Vector(camera.x, camera.y, camera.z))
-            if abs(direction) == 0:
-                return
-            
-            self.hitDirection = direction * (1 / abs(direction))
-        else:
-            x, y, z = rotate(0, 0, 1, camera.rotOX, camera.rotOY, camera.rotOZ, reverse=True)
-            f = 5
-            
-            self.hitDirection = planimetry.Vector(x, y, z)
-        self.selectedBall = ball
     
     def moveSpectator(self):
         x, y, z = self.spectatorSpeedDirection
@@ -170,40 +243,13 @@ class BilliardsWidget(QWidget):
         self.moveSpectator()
         
         self.box.movement()
+        
+        if self.isNewTurn:
+            for ball in self.box.balls:
+                if ball.speed.lenSq() != 0 and not ball.isInHole():
+                    break
+            else:
+                self.gameController._gameTurn()
+                self.isNewTurn = False
+        
         self.update()
-
-if __name__ == "__main__":
-    sizeX, sizeY, sizeZ = 500, 500, 500
-    r = 40
-    sp = r / 2
-    
-    balls = [physics.Ball(100, 100, 400, 20, 1, 0, 0, 0),
-             physics.Ball(100, 100, 100, 20, 1, 0, 0, 0),
-             physics.Ball(100, 300, 400, 20, 1, 0, 0, 0)]
-    
-    
-    
-    holes = [physics.Hole(sp, sp, sp, r), 
-            physics.Hole(sizeX - sp, sp, sp, r), 
-            physics.Hole(sp, sizeY - sp, sp, r),
-            physics.Hole(sp, sp, sizeZ - sp, r), 
-            physics.Hole(sizeX - sp, sizeY - sp, sp, r),
-            physics.Hole(sizeX - sp, sp, sizeZ - sp, r),
-            physics.Hole(sp, sizeY - sp, sizeZ - sp, r),
-            physics.Hole(sizeX - sp, sizeY - sp, sizeZ - sp, r),
-            physics.Hole(sizeX // 2, sizeY - sp, sizeZ - sp, r),
-            physics.Hole(sizeX // 2, sizeY - sp, sp, r), 
-            physics.Hole(sizeX // 2, sp, sizeZ - sp, r),
-            physics.Hole(sizeX // 2, sp, sp, r),
-            ]
-    
-    box = physics.Box(sizeX, sizeY, sizeZ, balls, holes, 0.005, 0.005)
-    
-    
-    
-    app = QApplication(sys.argv)
-    widget = BilliardsWidget(box=box)
-    widget.resize(1000, 500)
-    widget.show()
-    
-    sys.exit(app.exec_())
