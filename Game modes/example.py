@@ -14,9 +14,6 @@ line5
 """
 
 class GameController(BaseGameController):
-    name = name
-    description = description
-    
     def gameInit(self):
         sizeX, sizeY, sizeZ = 500, 500, 500
         r = 40

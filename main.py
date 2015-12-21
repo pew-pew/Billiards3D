@@ -35,10 +35,14 @@ class Game(QWidget):
         self.stack.removeWidget(self.billiardsWidget)
         
     def keyPressEvent(self, event):
-        return self.billiards.keyPressEvent(event)
+        if self.billiardsWidget is None:
+            return        
+        return self.billiardsWidget.keyPressEvent(event)
     
     def keyReleaseEvent(self, event):
-        return self.billiards.keyReleaseEvent(event)
+        if self.billiardsWidget is None:
+            return
+        return self.billiardsWidget.keyReleaseEvent(event)
 
 
 if __name__ == "__main__":

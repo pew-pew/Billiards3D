@@ -66,9 +66,9 @@ class BilliardsWidget(QWidget):
     def initGameMode(self, gameControllerClass):
         self.gameController = gameControllerClass(self)
         
-        self.box.ballHitCallback = self.gameController.ballHitEvent
-        self.box.wallHitCallback = self.gameController.wallHitEvent
-        self.box.inHoleCallback = self.gameController.inHoleEvent
+        self.box.ballHitCallback = self.gameController._ballHitEvent
+        self.box.wallHitCallback = self.gameController._wallHitEvent
+        self.box.inHoleCallback = self.gameController._inHoleEvent
         
         self.isNewTurn = False
         

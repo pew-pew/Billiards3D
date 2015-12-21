@@ -23,6 +23,7 @@ class GameModeSelectionWidget(QWidget):
         gameModesListView = QListView()
         gameModesItemModel = QStandardItemModel(gameModesListView)
         gameModesListView.setModel(gameModesItemModel)
+        gameModesListView.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Ignored))
         
         gameModes = importControllers()
         for mode in gameModes:
@@ -31,10 +32,17 @@ class GameModeSelectionWidget(QWidget):
             gameModesItemModel.appendRow(item)
         
         nameLabel = QLabel("Name:")
+        nameLabel.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed))
         gameModeNameLabel = QLabel("")
+        gameModeNameLabel.setSizePolicy(QSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored))
+        gameModeNameLabel.setAlignment(Qt.AlignLeft)
         
         descriptionLabel = QLabel("Description:")
+        descriptionLabel.setSizePolicy(QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed))
         gameModeDescriptionLabel = QLabel("")
+        gameModeDescriptionLabel.setSizePolicy(QSizePolicy(QSizePolicy.Ignored, QSizePolicy.Ignored))
+        gameModeDescriptionLabel.setAlignment(Qt.AlignLeft)
+        gameModeDescriptionLabel.setWordWrap(True)
         
         playButton = QPushButton("Play!")
         

@@ -31,14 +31,16 @@ class BaseGameController:
         self.gameEndCallback = None
         self.setMessageCallback = None
     
-    def ballHitEvent(self, ball1, ball2):
+    def _ballHitEvent(self, ball1, ball2):
         self.events.append(BallHitEvent(ball1, ball2))
+        self.ballHitEvent(ball1, ball2)
     
-    def wallHitEvent(self, ball):
+    def _wallHitEvent(self, ball):
         self.events.append(WallHitEvent(ball))
     
-    def inHoleEvent(self, ball, hole):
+    def _inHoleEvent(self, ball, hole):
         self.events.append(InHoleEvent(ball, hole))
+        self.inHoleEvent(ball, hole)
     
     def wipeEvents(self):
         self.events = []
@@ -59,6 +61,12 @@ class BaseGameController:
     def _gameEnd(self):
         if self.gameEndCallback:
             self.gameEndCallback()
+    
+    def ballHitEvent(self, ball1, ball2):
+        pass
+    
+    def inHoleEvent(self, ball, hole):
+        pass
     
     def gameInit(self):
         pass
