@@ -37,10 +37,13 @@
 ### Предоставляемые поля (и методы) класса BaseGameController:
 ##### billiards
 - объект класса BilliardsWidget, в котором этот режим игры "запущен"
+
 ##### box
 - объект класса Box, который содержится в billiards
+
 ##### camera
 - объект класса Camera, который содержится в billiards
 - имеет поля x, y, z, rotOX, rotOY, rotOZ, perspective(логическое true/false)
+
 ##### setMessage(self, string)
 - Устанавливает текст в окне над "экраном" игрового поля
