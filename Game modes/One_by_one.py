@@ -59,6 +59,8 @@ class GameController(BaseGameController):
         
         if self.mistakes >= 2:
             self.setMessage("You lose!")
+            
+        self.wasHit = False
         
         for ball in self.box.balls:
             if ball is not self.taggedBall:
