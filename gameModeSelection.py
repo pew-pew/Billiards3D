@@ -77,6 +77,8 @@ class GameModeSelectionWidget(QWidget):
         self.gameModeDescriptionLabel.setText(gameMode.description)
     
     def playButtonPushEvent(self):
+        if self.currentGameMode is None:
+            return
         self.gameModeChosen.emit(self.currentGameMode)
 
 
