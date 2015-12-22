@@ -53,23 +53,6 @@ class Camera:
         self.canvasWidth = None
         self.canvasHeight = None
         self.painter = None
-        
-        self.edges = []
-        
-        sizeX, sizeY, sizeZ = self.box.sizeX, self.box.sizeY, self.box.sizeZ
-        
-        for a in [0, 1]:
-            for b in [0, 1]:
-                self.edges.append([a, b, 0, a, b, 1])
-                self.edges.append([a, 0, b, a, 1, b])
-                self.edges.append([0, a, b, 1, a, b])
-        
-        for i in range(len(self.edges)):
-            x1, y1, z1, x2, y2, z2 = self.edges[i]
-            x1, x2 = x1 * sizeX, x2 * sizeX
-            y1, y2 = y1 * sizeY, y2 * sizeY
-            z1, z2 = z1 * sizeZ, z2 * sizeZ
-            self.edges[i] = [x1, y1, z1, x2, y2, z2]
     
     def moveLocal(self, x, y, z):
         x, y, z = rotate(x, y, z, self.rotOX, self.rotOY, self.rotOZ, reverse=True)
@@ -99,6 +82,25 @@ class Camera:
     def renderBackgound(self):
         self.painter.fillRect(0, 0, self.canvasWidth, self.canvasHeight, QBrush(Qt.white, Qt.SolidPattern))
     
+    def generateEdges(self):
+        sizeX, sizeY, sizeZ = self.box.sizeX, self.box.sizeY, self.box.sizeZ
+        edges = []
+        
+        for a in [0, 1]:
+            for b in [0, 1]:
+                edges.append([a, b, 0, a, b, 1])
+                edges.append([a, 0, b, a, 1, b])
+                edges.append([0, a, b, 1, a, b])
+        
+        for i in range(len(edges)):
+            x1, y1, z1, x2, y2, z2 = edges[i]
+            x1, x2 = x1 * sizeX, x2 * sizeX
+            y1, y2 = y1 * sizeY, y2 * sizeY
+            z1, z2 = z1 * sizeZ, z2 * sizeZ
+            edges[i] = [x1, y1, z1, x2, y2, z2]
+        
+        return edges
+    
     def render(self, painter, width, height):
         self.canvasWidth = width
         self.canvasHeight = height
@@ -107,12 +109,14 @@ class Camera:
         sizeX, sizeY, sizeZ = self.box.sizeX, self.box.sizeY, self.box.sizeZ
         maxSize = max(sizeX, sizeY, sizeZ)
         
+        edges = self.generateEdges()
+        
         #self.renderBackgound()
         
         #----align edges to camera----
         minZ = float("inf")
         alignedEdges = []
-        for x1, y1, z1, x2, y2, z2 in self.edges:
+        for x1, y1, z1, x2, y2, z2 in edges:
             x1, y1, z1 = self.alignForCamera(x1, y1, z1)
             x2, y2, z2 = self.alignForCamera(x2, y2, z2)
             minZ = min(minZ, z1, z2)
