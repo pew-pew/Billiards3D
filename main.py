@@ -20,7 +20,6 @@ class Game(QWidget):
         
         vbox = QVBoxLayout()
         vbox.addWidget(self.stack)
-        
         vbox.setContentsMargins(0, 0, 0, 0)
         
         self.setLayout(vbox)
