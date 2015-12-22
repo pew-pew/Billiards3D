@@ -4,10 +4,10 @@ import math
 
 name = "One_by_one"
 
-#description = """\
-#ƒва шара
-#ќдин шанс на промах
-#"""
+description = """\
+Two balls 
+One chance to make mistake
+"""
 
 class GameController(BaseGameController):
     def gameInit(self):
@@ -18,7 +18,6 @@ class GameController(BaseGameController):
         self.box.sizeX = sizeX
         self.box.sizeY = sizeY
         self.box.sizeZ = sizeZ
-       # self.camera = Camera(0, 250, 250, 0, 0, 0, True)
         
         self.box.balls = [physics.Ball(125, 250, 250, 30, 1, 0, 0, 0),
                           physics.Ball(375, 250, 250, 30, 1, 0, 0, 0),

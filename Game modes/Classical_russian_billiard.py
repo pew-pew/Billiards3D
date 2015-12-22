@@ -4,7 +4,9 @@ import math
 
 name = "Classical_russian_billiard"
 
-description = ""
+description = """\
+The original game
+"""
 
 class GameController(BaseGameController):
     def gameInit(self):
@@ -73,6 +75,7 @@ class GameController(BaseGameController):
             self.setMessage("You lose!")
         
         for ball in self.box.balls:
+            ball.canBeSelected = True
             if ball is not self.taggedBall:
                 if not ball.isInHole():
                     break

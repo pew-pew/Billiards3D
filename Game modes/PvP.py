@@ -4,8 +4,10 @@ import math
 
 name = "PvP"
 
-#description = """\
-#"""
+description = """\
+Two players
+Eight balls 
+"""
 
 class GameController(BaseGameController):
     def gameInit(self):
@@ -16,8 +18,7 @@ class GameController(BaseGameController):
         self.box.sizeX = sizeX
         self.box.sizeY = sizeY
         self.box.sizeZ = sizeZ
-       # self.camera = Camera(0, 250, 250, 0, 0, 0, True)
-        
+       
         self.box.balls = [physics.Ball(125, 125, 125, 30, 1, 0, 0, 0),
                           physics.Ball(125, 375, 125, 30, 1, 0, 0, 0),
                           physics.Ball(125, 125, 375, 30, 1, 0, 0, 0),
@@ -82,11 +83,11 @@ class GameController(BaseGameController):
         else:
             if self.player == 'first':
                 self.player = 'second'
-                self.setMessage("Second is playing")  
+                self.setMessage("Second is playing") 
             else:
                 self.player = 'first'
                 self.setMessage("First is playing")
-                
+                                
         if len(self.tableballs) < 2:
             self.setMessage("First " + str(score1) + ", " + "Second " + str(score2))
             
